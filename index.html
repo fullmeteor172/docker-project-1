@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrimLink.org</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Space Grotesk', sans-serif; }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fade-in 0.3s ease-in-out; }
+  </style>
+</head>
+<body class="bg-neutral-900 text-white flex items-center justify-center min-h-screen p-4">
+  <div class="w-full max-w-md text-center p-6">
+    <!-- Header -->
+    <h1 class="text-4xl font-bold text-orange-500 mb-2 flex justify-center items-center gap-2">
+      <i data-lucide="scissors" class="w-8 h-8"></i>
+      TrimLink.org
+    </h1>
+    <p class="text-neutral-400 mb-8">Shorten your long links with ease.</p>
+
+    <!-- Form -->
+    <form id="shorten-form" class="space-y-4">
+      <div class="flex gap-2">
+        <input 
+          type="text" 
+          name="url" 
+          placeholder="Paste your link here" 
+          class="flex-1 px-4 py-2 rounded-lg bg-neutral-800 text-white border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-500 transition" 
+          required 
+        />
+        <button 
+          type="submit" 
+          class="px-4 py-2 rounded-lg bg-orange-500 text-black font-semibold hover:bg-orange-400 active:scale-95 transition flex items-center gap-1"
+        >
+          <i data-lucide="link-2" class="w-4 h-4"></i>
+          Shorten
+        </button>
+      </div>
+    </form>
+
+    <!-- Result -->
+    <div id="result" class="mt-6 text-lg"></div>
+
+    <!-- Footer -->
+    <footer class="mt-10 text-sm text-neutral-600">
+      <p>Built with <span class="text-orange-400">FastAPI</span> · © TrimLink.org</p>
+    </footer>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    const form = document.getElementById("shorten-form");
+    const resultDiv = document.getElementById("result");
+
+    // Simple URL validator: must have domain + TLD
+    function normalizeUrl(input) {
+      let url = input.trim();
+      if (!/^https?:\/\//i.test(url)) {
+        url = "https://" + url;
+      }
+      try {
+        const parsed = new URL(url);
+        if (!parsed.hostname.includes(".")) {
+          throw new Error("Invalid domain");
+        }
+        return parsed.href;
+      } catch {
+        return null;
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      resultDiv.innerHTML = "Generating link...";
+      const userInput = e.target.url.value;
+      const normalizedUrl = normalizeUrl(userInput);
+
+      if (!normalizedUrl) {
+        resultDiv.innerHTML = `<p class="text-red-400">Invalid URL. Please enter a valid domain.</p>`;
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/v1/shorten", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: normalizedUrl })
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to shorten URL");
+        }
+
+        const data = await res.json();
+        const shortUrl = window.location.origin + "/" + data.code;
+
+        resultDiv.innerHTML = `
+          <div class="p-4 bg-neutral-800 rounded-lg border border-neutral-700 animate-fade-in flex items-center justify-between">
+            <a href="${shortUrl}" target="_blank" class="text-orange-400 font-semibold underline break-all">${shortUrl}</a>
+            <button id="copy-btn" class="ml-3 p-2 rounded-md hover:bg-neutral-700 transition flex items-center" title="Copy link">
+              <i data-lucide="copy" class="w-5 h-5"></i>
+            </button>
+          </div>
+        `;
+
+        lucide.createIcons(); // re-render icons
+
+        // Copy button logic
+        const copyBtn = document.getElementById("copy-btn");
+        copyBtn.addEventListener("click", async () => {
+          await navigator.clipboard.writeText(shortUrl);
+          copyBtn.innerHTML = '<i data-lucide="check" class="w-5 h-5 text-green-400"></i>';
+          lucide.createIcons();
+          setTimeout(() => {
+            copyBtn.innerHTML = '<i data-lucide="copy" class="w-5 h-5"></i>';
+            lucide.createIcons();
+          }, 1500);
+        });
+
+      } catch (err) {
+        resultDiv.innerHTML = `<p class="text-red-400">Error: ${err.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
