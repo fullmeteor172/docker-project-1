@@ -8,3 +8,18 @@ services:
       - "80:8000"
     volumes:
       - "./:/app"
+
+  redis:
+    image: redis:alpine3.22
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: >
+      redis-server
+      --save 60 10
+
+volumes:
+  redis_data:

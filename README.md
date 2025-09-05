@@ -1,5 +1,5 @@
 # trimlink.org
-A minimal URL shortener built with **FastAPI**.
+A minimal URL shortener built with **FastAPI** & **Redis**.
 
 ## 🚀 Features
 
